@@ -257,6 +257,8 @@ fn pages(app: &mut FigApp, ui: &mut Ui) {
             }
             if resp.clicked() && !divider {
                 select = Some(id);
+                app.ui.pages_focus = true;
+                app.ui.layers_focus = false;
             }
             if resp.double_clicked() {
                 app.ui.rename_page = Some((id, name.clone()));
@@ -1064,6 +1066,7 @@ fn layers(app: &mut FigApp, ui: &mut Ui) {
     }
     if let Some((id, m)) = clicked {
         app.ui.layers_focus = true;
+        app.ui.pages_focus = false;
         let order: Vec<NodeId> = rows.iter().map(|r| r.id).collect();
         let pos = |x: NodeId| order.iter().position(|o| *o == x);
         let anchor = app.ui.layer_anchor.filter(|a| sel.contains(a)).and_then(pos);

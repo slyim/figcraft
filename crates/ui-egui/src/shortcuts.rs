@@ -252,6 +252,13 @@ fn key_event(app: &mut FigApp, key: Key, physical: Option<Key>, m: Modifiers, re
     if matches!(key, Key::Backspace | Key::Delete) && m.is_none() && crate::proto_panel::delete_selected_interaction(app, ctx) {
         return true;
     }
+    // A page row clicked last: Delete removes that page, not the layers selected on it (#859).
+    // The keyboard goes back to the canvas, so a second press doesn't take another page too.
+    if matches!(key, Key::Backspace | Key::Delete) && m.is_none() && app.ui.pages_focus {
+        app.ui.pages_focus = false;
+        app.run("page.delete", json!({}));
+        return true;
+    }
     // Vector edit mode and the shape builder have their own keys (tools, nudging points, delete,
     // join, Enter to finish); the rest fall through.
     match app.session.tool_key(key.name(), m.shift, m.alt, m.command) {

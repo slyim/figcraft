@@ -432,3 +432,40 @@ fn the_pages_list_keeps_three_rows_and_leaves_the_layers_room() {
     // A panel too short for both keeps the three rows.
     assert_eq!(pages_list_height(Some(500.0), 100.0), 3.0 * ROW);
 }
+
+/// Delete after a click on a page row removes that page, not the layers selected on it, and only
+/// once (#859); after a press on the canvas it deletes the selection again.
+#[test]
+fn delete_after_clicking_a_page_row_removes_the_page() {
+    let mut s = Session::new();
+    let p1 = s.page().unwrap();
+    let r = id(s.execute("node.create", &json!({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})).unwrap());
+    let p2 = id(s.execute("page.add", &json!({})).unwrap());
+    let p3 = id(s.execute("page.add", &json!({})).unwrap());
+    let mut u = Ui::new(s);
+    let row = page_row(&mut u, p3, p1);
+    click(&mut u, row, Modifiers::NONE);
+    assert_eq!(u.app.session.page().unwrap(), p3);
+    let delete = |u: &mut Ui| {
+        u.frame(vec![
+            Event::Key { key: egui::Key::Delete, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE },
+            Event::Key { key: egui::Key::Delete, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE },
+        ])
+    };
+    delete(&mut u);
+    assert!(u.app.ui.last_error.is_none(), "{:?}", u.app.ui.last_error);
+    assert_eq!(u.app.session.doc().unwrap().pages, [p1, p2], "the clicked page is gone");
+    delete(&mut u);
+    assert_eq!(u.app.session.doc().unwrap().pages, [p1, p2], "a second press takes no other page");
+    // Back on the first page with its rectangle selected, a press on the canvas gives Delete back
+    // to the selection.
+    let row = page_row(&mut u, p1, p2);
+    click(&mut u, row, Modifiers::NONE);
+    u.app.session.execute("select.set", &json!({"ids": [r]})).unwrap();
+    let c = u.app.canvas.rect.center();
+    click(&mut u, c, Modifiers::NONE);
+    u.app.session.execute("select.set", &json!({"ids": [r]})).unwrap();
+    delete(&mut u);
+    assert_eq!(u.app.session.doc().unwrap().pages, [p1, p2]);
+    assert!(u.app.session.doc().unwrap().node(r).is_none(), "the rectangle is deleted");
+}
